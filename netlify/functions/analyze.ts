@@ -1,0 +1,154 @@
+import { Handler } from '@netlify/functions';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAWVqDIunVa4DjKftnQ1JVBMCAlMrOgCco';
+const genAI = new GoogleGenerativeAI(API_KEY);
+
+interface AnalysisResponse {
+  readability_score: number;
+  issues: Array<{
+    type: string;
+    severity: string;
+    sentence: string;
+    suggestion: string;
+    position: { start: number; end: number };
+  }>;
+  summary: string;
+  metrics: {
+    wordCount: number;
+    sentenceCount: number;
+    paragraphCount: number;
+    avgWordsPerSentence: number;
+    readabilityScore: number;
+    complexSentences: number;
+  };
+}
+
+async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisResponse> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in response');
+      }
+
+      const analysis: AnalysisResponse = JSON.parse(jsonMatch[0]);
+      
+      if (!analysis.readability_score || !analysis.issues || !analysis.summary || !analysis.metrics) {
+        throw new Error('Invalid response structure');
+      }
+
+      return analysis;
+    } catch (error) {
+      console.error(`Gemini API attempt ${attempt + 1} failed:`, error);
+      
+      if (attempt === retries - 1) {
+        return {
+          readability_score: 50,
+          issues: [],
+          summary: 'Kopsavilkums nav pieejams (API kļūda)',
+          metrics: {
+            wordCount: 0,
+            sentenceCount: 0,
+            paragraphCount: 0,
+            avgWordsPerSentence: 0,
+            readabilityScore: 50,
+            complexSentences: 0,
+          },
+        };
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+  }
+
+  throw new Error('Failed to analyze text after multiple attempts');
+}
+
+export const handler: Handler = async (event) => {
+  // CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+  };
+
+  // Handle preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers, body: '' };
+  }
+
+  // Only allow POST
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
+
+  try {
+    const { text, settings, prompt } = JSON.parse(event.body || '{}');
+
+    // Validation
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Text is required' }),
+      };
+    }
+
+    if (text.length > 50000) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Text is too long (max 50000 characters)' }),
+      };
+    }
+
+    if (!settings || !['lv', 'ru', 'en'].includes(settings.language)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid settings' }),
+      };
+    }
+
+    if (!prompt || typeof prompt !== 'string') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Prompt is required' }),
+      };
+    }
+
+    console.log(`Analyzing text (${text.length} chars) in ${settings.language}`);
+
+    const result = await analyzeWithGemini(prompt);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(result),
+    };
+  } catch (error) {
+    console.error('Analyze error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: 'Failed to analyze text',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    };
+  }
+};
+
