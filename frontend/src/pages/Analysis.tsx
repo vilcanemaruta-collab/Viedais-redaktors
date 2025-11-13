@@ -162,8 +162,6 @@ export default function Analysis() {
     URL.revokeObjectURL(url);
   };
 
-  const acceptedCount = analysisResult?.issues.filter(i => i.accepted).length || 0;
-  
   const correctedText = analysisResult ? applyCorrectedText(text, analysisResult.issues) : '';
 
   const handleCopyText = async () => {
@@ -207,9 +205,10 @@ export default function Analysis() {
   }
 
   const readabilityInfo = getReadabilityLevel(analysisResult.readabilityScore);
-  const { metrics, issues, summary } = analysisResult;
+  const { metrics, issues = [], summary } = analysisResult;
 
   const displayedIssues = showOnlyAccepted ? issues.filter(i => i.accepted) : issues;
+  const acceptedCount = issues.filter(i => i.accepted).length;
 
   const issuesBySeverity = {
     high: displayedIssues.filter(i => i.severity === 'high'),
@@ -433,10 +432,7 @@ export default function Analysis() {
                             </button>
                             <div className="flex-1">
                               <div className="font-medium text-gray-900 dark:text-white mb-1">
-                                {issue.type === 'readability' && 'Lasāmība'}
-                                {issue.type === 'grammar' && 'Gramatika'}
-                                {issue.type === 'style' && 'Stils'}
-                                {issue.type === 'complexity' && 'Sarežģītība'}
+                                {issue.type || 'Problēma'}
                               </div>
                               <p className="text-gray-700 dark:text-gray-300 mb-2">
                                 "{issue.sentence}"
