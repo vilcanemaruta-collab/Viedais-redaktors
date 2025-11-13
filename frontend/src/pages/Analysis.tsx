@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, AlertCircle, CheckCircle, Download, Loader2, ArrowLeft } from 'lucide-react';
+import { BarChart3, AlertCircle, CheckCircle, Download, Loader2, ArrowLeft, CheckSquare, Square } from 'lucide-react';
 import { useTextStore } from '../stores/textStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAdminStore } from '../stores/adminStore';
@@ -10,10 +10,20 @@ import { buildAnalysisPrompt } from '../utils/promptBuilder';
 
 export default function Analysis() {
   const navigate = useNavigate();
-  const { text, analysisResult, setAnalysisResult, isAnalyzing, setIsAnalyzing } = useTextStore();
+  const { 
+    text, 
+    analysisResult, 
+    setAnalysisResult, 
+    isAnalyzing, 
+    setIsAnalyzing,
+    toggleIssueAcceptance,
+    acceptAllIssues,
+    rejectAllIssues
+  } = useTextStore();
   const settings = useSettingsStore();
   const { guidelines, knowledgeBase, getActivePrompt } = useAdminStore();
   const [error, setError] = useState<string | null>(null);
+  const [showOnlyAccepted, setShowOnlyAccepted] = useState(false);
 
   useEffect(() => {
     if (!text.trim()) {
@@ -125,6 +135,32 @@ export default function Analysis() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportAccepted = () => {
+    if (!analysisResult) return;
+
+    const acceptedIssues = analysisResult.issues.filter(issue => issue.accepted);
+    
+    const exportData = {
+      text,
+      settings,
+      analysis: {
+        ...analysisResult,
+        issues: acceptedIssues
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `akceptētie-ieteikumi-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const acceptedCount = analysisResult?.issues.filter(i => i.accepted).length || 0;
+
   if (isAnalyzing) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -148,10 +184,20 @@ export default function Analysis() {
   const readabilityInfo = getReadabilityLevel(analysisResult.readabilityScore);
   const { metrics, issues, summary } = analysisResult;
 
+  const displayedIssues = showOnlyAccepted ? issues.filter(i => i.accepted) : issues;
+
   const issuesBySeverity = {
-    high: issues.filter(i => i.severity === 'high'),
-    medium: issues.filter(i => i.severity === 'medium'),
-    low: issues.filter(i => i.severity === 'low'),
+    high: displayedIssues.filter(i => i.severity === 'high'),
+    medium: displayedIssues.filter(i => i.severity === 'medium'),
+    low: displayedIssues.filter(i => i.severity === 'low'),
+  };
+
+  const getOriginalIssueIndex = (issue: typeof issues[0]) => {
+    return issues.findIndex(i => 
+      i.sentence === issue.sentence && 
+      i.suggestion === issue.suggestion &&
+      i.type === issue.type
+    );
   };
 
   return (
@@ -272,9 +318,51 @@ export default function Analysis() {
       {/* Issues */}
       {issues.length > 0 && (
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Atrastās Problēmas ({issues.length})
-          </h2>
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Atrastās Problēmas ({issues.length})
+                {acceptedCount > 0 && (
+                  <span className="ml-2 text-sm font-normal text-green-600 dark:text-green-400">
+                    ({acceptedCount} akceptēti)
+                  </span>
+                )}
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={acceptAllIssues}
+                  className="px-3 py-1.5 text-sm bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <CheckSquare size={16} />
+                  Akceptēt visus
+                </button>
+                <button
+                  onClick={rejectAllIssues}
+                  className="px-3 py-1.5 text-sm bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <Square size={16} />
+                  Noraidīt visus
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex-1 text-sm text-blue-900 dark:text-blue-100">
+                💡 Atzīmējiet ieteikumus, kurus vēlaties akceptēt. Akceptētos var eksportēt atsevišķi.
+              </div>
+              {acceptedCount > 0 && (
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showOnlyAccepted}
+                    onChange={(e) => setShowOnlyAccepted(e.target.checked)}
+                    className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  Rādīt tikai akceptētos
+                </label>
+              )}
+            </div>
+          </div>
           
           <div className="space-y-4">
             {['high', 'medium', 'low'].map((severity) => {
@@ -297,29 +385,45 @@ export default function Analysis() {
                     {config.label} prioritāte ({severityIssues.length})
                   </h3>
                   <div className="space-y-3">
-                    {severityIssues.map((issue, index) => (
-                      <div
-                        key={index}
-                        className={`p-4 rounded-lg border-l-4 border-${config.color}-500 bg-${config.color}-50 dark:bg-${config.color}-900/20`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900 dark:text-white mb-1">
-                              {issue.type === 'readability' && 'Lasāmība'}
-                              {issue.type === 'grammar' && 'Gramatika'}
-                              {issue.type === 'style' && 'Stils'}
-                              {issue.type === 'complexity' && 'Sarežģītība'}
+                    {severityIssues.map((issue, index) => {
+                      const originalIndex = getOriginalIssueIndex(issue);
+                      return (
+                        <div
+                          key={index}
+                          className={`p-4 rounded-lg border-l-4 border-${config.color}-500 bg-${config.color}-50 dark:bg-${config.color}-900/20 transition-all ${
+                            issue.accepted ? 'ring-2 ring-green-500 dark:ring-green-400' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <button
+                              onClick={() => toggleIssueAcceptance(originalIndex)}
+                              className="mt-1 flex-shrink-0 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                              title={issue.accepted ? 'Noraidīt ieteikumu' : 'Akceptēt ieteikumu'}
+                            >
+                              {issue.accepted ? (
+                                <CheckSquare size={20} className="text-green-600 dark:text-green-400" />
+                              ) : (
+                                <Square size={20} />
+                              )}
+                            </button>
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900 dark:text-white mb-1">
+                                {issue.type === 'readability' && 'Lasāmība'}
+                                {issue.type === 'grammar' && 'Gramatika'}
+                                {issue.type === 'style' && 'Stils'}
+                                {issue.type === 'complexity' && 'Sarežģītība'}
+                              </div>
+                              <p className="text-gray-700 dark:text-gray-300 mb-2">
+                                "{issue.sentence}"
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                💡 <strong>Ieteikums:</strong> {issue.suggestion}
+                              </p>
                             </div>
-                            <p className="text-gray-700 dark:text-gray-300 mb-2">
-                              "{issue.sentence}"
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              💡 <strong>Ieteikums:</strong> {issue.suggestion}
-                            </p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -341,7 +445,7 @@ export default function Analysis() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button
           onClick={() => {
             setAnalysisResult(null);
@@ -357,6 +461,15 @@ export default function Analysis() {
         >
           Analizēt vēlreiz
         </button>
+        {acceptedCount > 0 && (
+          <button
+            onClick={handleExportAccepted}
+            className="btn-secondary flex items-center gap-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+          >
+            <Download size={20} />
+            Eksportēt akceptētos ({acceptedCount})
+          </button>
+        )}
       </div>
     </div>
   );

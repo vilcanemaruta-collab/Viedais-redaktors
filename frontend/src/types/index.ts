@@ -38,6 +38,7 @@ export interface TextIssue {
     start: number;
     end: number;
   };
+  accepted?: boolean;
 }
 
 export interface AnalysisResult {
