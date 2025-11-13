@@ -26,8 +26,14 @@
   ],
   "author": "Delfi Hakathon 2024",
   "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.1.3",
+    "@netlify/functions": "^2.4.0"
+  },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
   }
 }
 
