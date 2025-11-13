@@ -146,80 +146,160 @@ const normalizeAnalysis = (raw: RawAnalysis): AnalysisResponse => {
   };
 };
 
-async function analyzeWithGemini(prompt: string, retries = 2): Promise<AnalysisResponse> {
-  console.log('🤖 Initializing Gemini model...');
-  // Using Gemini 2.0 Flash (experimental) - fast and reliable
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.0-flash-exp',
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-    }
+const MODEL_VARIANTS = [
+  'gemini-2.0-flash-exp',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash-latest',
+];
+
+const buildFallbackSummary = (text: string, metrics: AnalysisResponse['metrics']): string => {
+  const sentences = text
+    .replace(/\s+/g, ' ')
+    .match(/[^.!?]+[.!?]?/g)
+    ?.map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0) ?? [];
+
+  const bullets = sentences.slice(0, 3).map((sentence) => {
+    const trimmed = sentence.replace(/^[•\-\d\.\s]+/, '');
+    return `• ${trimmed}`;
   });
 
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      console.log(`🔄 Gemini attempt ${attempt + 1}/${retries}`);
-      console.log('📤 Sending prompt to Gemini (length:', prompt.length, ')');
-      
-      // Set timeout for Gemini request (20 seconds max)
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Gemini request timeout')), 20000)
-      );
-      
-      const result = await Promise.race([
-        model.generateContent(prompt),
-        timeoutPromise
-      ]);
-      const response = await result.response;
-      const text = response.text();
-      
-      console.log('📥 Gemini response received (length:', text.length, ')');
+  if (bullets.length > 0) {
+    return bullets.join('\n');
+  }
 
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in response');
-      }
+  return [
+    `• Vārdu skaits: ${metrics.wordCount}`,
+    `• Teikumu skaits: ${metrics.sentenceCount}`,
+    `• Vidēji vārdi teikumā: ${metrics.avgWordsPerSentence.toFixed(1)}`,
+  ].join('\n');
+};
 
-      const rawAnalysis = JSON.parse(jsonMatch[0]) as RawAnalysis;
-      const analysis = normalizeAnalysis(rawAnalysis);
+const computeLocalMetrics = (text: string): AnalysisResponse['metrics'] => {
+  const words = text.trim().length > 0 ? text.trim().split(/\s+/) : [];
+  const wordCount = words.length;
 
-      console.log('✅ Gemini analysis parsed successfully');
-      return analysis;
-    } catch (error) {
-      console.error(`❌ Gemini API attempt ${attempt + 1} failed:`, error);
-      console.error('❌ Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      
-      if (attempt === retries - 1) {
-        console.error('❌ All Gemini attempts failed, returning fallback');
-        return {
-          readability_score: 50,
-          issues: [],
-          summary: 'Kopsavilkums nav pieejams (API kļūda)',
-          metrics: {
-            wordCount: 0,
-            sentenceCount: 0,
-            paragraphCount: 0,
-            avgWordsPerSentence: 0,
-            readabilityScore: 50,
-            complexSentences: 0,
+  const sentences = text
+    .replace(/\s+/g, ' ')
+    .match(/[^.!?]+[.!?]?/g)
+    ?.map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0) ?? [];
+  const sentenceCount = sentences.length;
+
+  const paragraphCount = text
+    .split(/\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0).length;
+
+  const avgWordsPerSentence = sentenceCount > 0 ? wordCount / sentenceCount : wordCount;
+  const complexSentences = sentences.filter((sentence) => sentence.split(/\s+/).length > 20).length;
+
+  // Simple readability heuristic favouring shorter sentences
+  const readabilityScore = clamp(
+    Math.round(100 - Math.max(avgWordsPerSentence - 14, 0) * 4),
+    5,
+    95,
+  );
+
+  return {
+    wordCount,
+    sentenceCount,
+    paragraphCount,
+    avgWordsPerSentence: Number.isFinite(avgWordsPerSentence) ? Number.parseFloat(avgWordsPerSentence.toFixed(1)) : 0,
+    readabilityScore,
+    complexSentences,
+  };
+};
+
+interface GeminiAnalysisOptions {
+  prompt: string;
+  text: string;
+  retries?: number;
+}
+
+async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<AnalysisResponse> {
+  const { prompt, text, retries = 2 } = options;
+
+  console.log('🤖 Initializing Gemini model...');
+
+  const localMetrics = computeLocalMetrics(text);
+  const fallbackSummary = buildFallbackSummary(text, localMetrics);
+  const modelErrors: Array<{ model: string; attempt: number; error: string }> = [];
+
+  for (const modelId of MODEL_VARIANTS) {
+    console.log(`🧠 Trying Gemini model: ${modelId}`);
+    const model = genAI.getGenerativeModel({
+      model: modelId,
+    });
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        console.log(`🔄 Gemini attempt ${attempt + 1}/${retries} with ${modelId}`);
+        console.log('📤 Sending prompt to Gemini (length:', prompt.length, ')');
+        
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Gemini request timeout')), 20000)
+        );
+
+        const request = model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }]}],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json',
           },
-        };
-      }
+        });
+        
+        const result = await Promise.race([request, timeoutPromise]);
+        const response = await result.response;
+        const responseText = response.text();
+        
+        console.log('📥 Gemini response received (length:', responseText.length, ')');
 
-      // Wait before retry (exponential backoff)
-      const waitTime = 2000 * (attempt + 1);
-      console.log(`⏳ Waiting ${waitTime}ms before retry...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+        let rawAnalysis: RawAnalysis;
+
+        try {
+          rawAnalysis = JSON.parse(responseText) as RawAnalysis;
+        } catch (parseError) {
+          console.warn('⚠️ Direct JSON parse failed, attempting fallback regex extraction');
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            throw new Error('No JSON found in response');
+          }
+
+          rawAnalysis = JSON.parse(jsonMatch[0]) as RawAnalysis;
+        }
+
+        const analysis = normalizeAnalysis(rawAnalysis);
+
+        console.log('✅ Gemini analysis parsed successfully');
+        return analysis;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        modelErrors.push({ model: modelId, attempt: attempt + 1, error: message });
+
+        console.error(`❌ Gemini API attempt ${attempt + 1} failed for ${modelId}:`, error);
+        console.error('❌ Error details:', {
+          name: error instanceof Error ? error.name : 'Unknown',
+          message,
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        
+        const waitTime = 1500 * (attempt + 1);
+        console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      }
     }
   }
 
-  // This should never be reached due to the fallback return in the loop
-  throw new Error('Failed to analyze text after multiple attempts');
+  console.error('❌ All Gemini attempts failed across models:', modelErrors);
+
+  return {
+    readability_score: localMetrics.readabilityScore,
+    issues: [],
+    summary: `${fallbackSummary}\n• AI analīze pagaidām nav pieejama (Gemini kļūda)`,
+    metrics: localMetrics,
+  };
 }
 
 export const handler: Handler = async (event) => {
@@ -293,7 +373,7 @@ export const handler: Handler = async (event) => {
 
     console.log(`✅ Validation passed. Analyzing text (${text.length} chars) in ${settings.language}`);
 
-    const result = await analyzeWithGemini(prompt);
+    const result = await analyzeWithGemini({ prompt, text });
     
     console.log('✅ Analysis complete:', {
       readabilityScore: result.readability_score,
