@@ -2,15 +2,20 @@
 
 [build]
   # Frontend build
-  base = "frontend"
-  command = "npm install && npm run build"
-  publish = "dist"
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/dist"
   
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps"
 
-# Redirect all requests to index.html for SPA routing
+# API redirects (must be first!)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA routing - redirect all other requests to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
