@@ -24,17 +24,31 @@ interface AnalysisResponse {
   };
 }
 
-async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisResponse> {
+async function analyzeWithGemini(prompt: string, retries = 2): Promise<AnalysisResponse> {
   console.log('🤖 Initializing Gemini model...');
-  // Using latest Gemini 2.5 Flash model
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  // Using Gemini 2.0 Flash (experimental) - fast and reliable
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-2.0-flash-exp',
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 2048,
+    }
+  });
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       console.log(`🔄 Gemini attempt ${attempt + 1}/${retries}`);
       console.log('📤 Sending prompt to Gemini (length:', prompt.length, ')');
       
-      const result = await model.generateContent(prompt);
+      // Set timeout for Gemini request (20 seconds max)
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Gemini request timeout')), 20000)
+      );
+      
+      const result = await Promise.race([
+        model.generateContent(prompt),
+        timeoutPromise
+      ]);
       const response = await result.response;
       const text = response.text();
       
@@ -78,11 +92,14 @@ async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisR
         };
       }
 
-      console.log(`⏳ Waiting ${1000 * (attempt + 1)}ms before retry...`);
-      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+      // Wait before retry (exponential backoff)
+      const waitTime = 2000 * (attempt + 1);
+      console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
 
+  // This should never be reached due to the fallback return in the loop
   throw new Error('Failed to analyze text after multiple attempts');
 }
 

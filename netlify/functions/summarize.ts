@@ -25,7 +25,9 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    console.log('📋 Summarize function called');
     const { text, language } = JSON.parse(event.body || '{}');
+    console.log('📝 Text length:', text?.length, 'Language:', language);
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return {
@@ -43,7 +45,13 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash-exp',
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+      }
+    });
 
     const languageNames: Record<string, string> = {
       lv: 'latviešu',
@@ -59,9 +67,19 @@ ${text}
 
 Atbildi tikai ar kopsavilkumu, bez papildu komentāriem.`;
 
-    const result = await model.generateContent(prompt);
+    console.log('📤 Sending to Gemini...');
+    // Add timeout
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini request timeout')), 20000)
+    );
+    
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      timeoutPromise
+    ]);
     const response = await result.response;
     const summary = response.text();
+    console.log('✅ Summary generated (length:', summary.length, ')');
 
     return {
       statusCode: 200,
