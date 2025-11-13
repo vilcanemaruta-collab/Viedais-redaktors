@@ -31,14 +31,20 @@ export default function Analysis() {
     setError(null);
 
     try {
+      console.log('🔍 Starting analysis...');
+      console.log('📝 Text length:', text.length);
+      console.log('⚙️ Settings:', settings);
+      
       // Calculate local metrics
       const metrics = calculateTextMetrics(text, settings.language);
+      console.log('📊 Local metrics:', metrics);
 
       // Build prompt for AI analysis
       const activePrompt = getActivePrompt();
       if (!activePrompt) {
         throw new Error('Nav aktīvs sistēmas prompts');
       }
+      console.log('💬 Active prompt:', activePrompt.name);
 
       const prompt = buildAnalysisPrompt({
         text,
@@ -47,6 +53,8 @@ export default function Analysis() {
         knowledgeBase,
         promptTemplate: activePrompt.content,
       });
+      console.log('📤 Sending to API...');
+      console.log('🔗 API URL:', import.meta.env.VITE_API_URL || '/.netlify/functions');
 
       // Call API for AI analysis
       const result = await analyzeText({
@@ -54,6 +62,7 @@ export default function Analysis() {
         settings,
         prompt,
       });
+      console.log('✅ API Response:', result);
 
       // Merge local and AI metrics
       const finalResult = {
@@ -66,10 +75,17 @@ export default function Analysis() {
 
       setAnalysisResult(finalResult);
     } catch (err) {
-      console.error('Analysis error:', err);
+      console.error('❌ Analysis error:', err);
+      console.error('❌ Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown',
+        stack: err instanceof Error ? err.stack : undefined,
+        error: err,
+      });
+      
       setError(err instanceof Error ? err.message : 'Nezināma kļūda');
       
       // Fallback to local analysis only
+      console.log('⚠️ Falling back to local analysis only');
       const metrics = calculateTextMetrics(text, settings.language);
       setAnalysisResult({
         metrics,
@@ -79,6 +95,7 @@ export default function Analysis() {
       });
     } finally {
       setIsAnalyzing(false);
+      console.log('✅ Analysis complete');
     }
   };
 

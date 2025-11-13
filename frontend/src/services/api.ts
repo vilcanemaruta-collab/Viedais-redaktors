@@ -23,10 +23,26 @@ export interface SummarizeRequest {
 
 export async function analyzeText(request: AnalyzeRequest): Promise<AnalysisResult> {
   try {
+    console.log('🌐 API Request to /analyze');
+    console.log('📍 Full URL:', `${API_BASE_URL}/analyze`);
+    console.log('📦 Request payload:', {
+      textLength: request.text.length,
+      settings: request.settings,
+      promptLength: request.prompt.length,
+    });
+    
     const response = await api.post<AnalysisResult>('/analyze', request);
+    
+    console.log('✅ API Response status:', response.status);
+    console.log('✅ API Response data:', response.data);
+    
     return response.data;
-  } catch (error) {
-    console.error('Error analyzing text:', error);
+  } catch (error: any) {
+    console.error('❌ API Error:', error);
+    console.error('❌ Error response:', error.response?.data);
+    console.error('❌ Error status:', error.response?.status);
+    console.error('❌ Error headers:', error.response?.headers);
+    
     throw new Error('Neizdevās analizēt tekstu. Lūdzu, mēģiniet vēlreiz.');
   }
 }
