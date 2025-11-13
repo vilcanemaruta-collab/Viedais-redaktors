@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FileText, Settings, BarChart3, Shield, Menu, X, Moon, Sun } from 'lucide-react';
+import { FileText, Settings, BarChart3, Shield, Menu, X, Moon, Sun, RefreshCw } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -22,6 +22,23 @@ export default function Layout({ children }: LayoutProps) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+  };
+
+  const clearCache = () => {
+    if (confirm('Vai tiešām vēlaties iztīrīt cache un pārlādēt lapu?')) {
+      // Clear localStorage
+      const darkMode = localStorage.getItem('darkMode');
+      localStorage.clear();
+      if (darkMode) {
+        localStorage.setItem('darkMode', darkMode);
+      }
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      // Hard reload
+      window.location.reload();
     }
   };
 
@@ -80,8 +97,21 @@ export default function Layout({ children }: LayoutProps) {
             })}
           </nav>
 
-          {/* Dark Mode Toggle */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          {/* Actions */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            {/* Clear Cache Button */}
+            <button
+              onClick={clearCache}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg w-full hover:bg-orange-100 dark:hover:bg-orange-900/30 text-orange-600 dark:text-orange-400 transition-colors"
+              title={!isSidebarOpen ? 'Iztīrīt cache' : undefined}
+            >
+              <RefreshCw size={20} />
+              {isSidebarOpen && (
+                <span className="font-medium">Iztīrīt cache</span>
+              )}
+            </button>
+            
+            {/* Dark Mode Toggle */}
             <button
               onClick={toggleDarkMode}
               className="flex items-center gap-3 px-4 py-3 rounded-lg w-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
