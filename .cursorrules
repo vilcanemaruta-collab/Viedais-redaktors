@@ -1,0 +1,174 @@
+# Vibe Coding Rules 2025 🚀
+
+## Core Philosophy
+- **Action > Documentation** - Code first, explain later, only if needed
+- **Modern > Legacy** - Always use 2025's latest tech, verify before implementing
+- **Flow > Friction** - Keep the vibe going, minimize interruptions
+- **Smart > Verbose** - Be concise, no essays or long specifications
+
+## Tech Stack Preferences (2025 Latest)
+
+### Frontend
+- **React 19** with Server Components (not 18)
+- **Vite 6** with Rollup 4
+- **TailwindCSS 4** (new engine)
+- **TypeScript 5.7+** 
+- **Zustand 5** or Jotai for state (prefer Jotai for new features)
+- **TanStack Query v5** for data fetching
+- **React Router 7** with data APIs
+- **Lucide React** for icons (updated)
+- **Biome** instead of ESLint+Prettier (faster, simpler)
+
+### Backend
+- **Node.js 22 LTS** (or latest)
+- **Hono** instead of Express (faster, modern)
+- **TypeScript 5.7+**
+- **Bun** runtime option (faster than Node)
+- **tRPC** or **Hono RPC** for type-safe APIs
+- **Drizzle ORM** over Prisma (lighter)
+
+### Build & Tools
+- **Bun** for package management (faster than npm/pnpm)
+- **Turborepo** for monorepo if needed
+- **Biome** for linting/formatting
+- **Vitest** for testing (not Jest)
+- **tsx** replaced with **bun** or **Vite-Node**
+
+### AI & APIs
+- **Google Gemini 2.0 Flash** (check for updates)
+- **AI SDK by Vercel** for AI integrations
+- **OpenAI GPT-4.5** or latest if available
+
+### Deployment
+- **Vercel** with edge functions
+- **Cloudflare Workers** for global edge
+- **Railway** / **Fly.io** for full-stack
+
+## Coding Style
+
+### DO ✅
+- Use latest syntax (satisfies, using, const type parameters)
+- Prefer arrow functions and const
+- Use async/await, never callbacks
+- Destructure everything
+- Use optional chaining (?.) and nullish coalescing (??)
+- Single responsibility, small functions
+- Named exports (tree-shaking)
+- Use fetch (native), not axios for new code
+- CSS-in-JS with Tailwind or Panda CSS
+- Use Biome config instead of .eslintrc
+
+### DON'T ❌
+- No long comments or JSDoc (types are docs)
+- No "TODO" comments (make GitHub issue or fix now)
+- No console.log in production code
+- No any type (use unknown or proper types)
+- No var, only const/let
+- No classes unless really needed (functional > OOP)
+- No legacy packages (check bundlephobia first)
+- No .prettierrc if using Biome
+
+### File Structure
+```
+src/
+  ├── app/           # Routes (App Router style)
+  ├── components/    # UI components
+  ├── lib/           # Utilities, config, clients
+  ├── hooks/         # Custom hooks
+  ├── stores/        # State management
+  ├── types/         # Shared types
+  └── server/        # Server-only code
+```
+
+## Communication Style
+
+### When Responding
+- **Start coding immediately** - Don't ask for permission
+- **No preambles** - "I'll create..." → just create
+- **Show, don't tell** - Code > explanations
+- **One-shot solutions** - Give complete working code
+- **Inline comments only if complex** - Code should be self-explanatory
+
+### What NOT to say
+- ❌ "Let me create a comprehensive solution..."
+- ❌ "Here's a detailed explanation..."
+- ❌ "I'll now proceed to..."
+- ❌ "Would you like me to..."
+- ✅ Just do it and show results
+
+## AI Assistant Behavior
+
+1. **Read less, code more** - Don't read entire files if not needed
+2. **Parallel actions** - Use multiple tools at once
+3. **Assume intent** - If unclear, pick the most useful interpretation
+4. **Fix, don't report** - See a bug? Fix it immediately
+5. **Update, don't create** - Edit existing files, avoid new files unless necessary
+6. **No test files** - Only if explicitly requested
+7. **No README updates** - Unless explicitly requested
+
+## Tech Verification Protocol
+
+Before implementing:
+1. Check if tech is from 2024 or earlier → search for 2025 alternative
+2. React 18? → Upgrade to React 19
+3. Express? → Consider Hono
+4. npm? → Use bun
+5. ESLint+Prettier? → Use Biome
+6. Jest? → Use Vitest
+7. Axios? → Use native fetch
+8. Moment.js? → Use Temporal API or date-fns
+
+## Example Workflows
+
+### Feature Request
+User: "Add dark mode toggle"
+You: *Immediately edits components, adds logic, updates styles*
+
+### Bug Report
+User: "Button doesn't work"
+You: *Finds issue, fixes it, verifies* → "Fixed"
+
+### Tech Question
+User: "How to add authentication?"
+You: *Installs latest auth lib, sets it up, shows code*
+
+## Special Rules for This Project
+
+- **Language**: Support LV/RU/EN, prioritize Latvian
+- **AI**: Use Gemini 2.0 Flash (check for updates from 2.5 Pro)
+- **State**: Zustand is fine, but consider Jotai for new features
+- **Backend**: Consider migrating Express → Hono for better performance
+- **Build**: Can use Bun instead of npm for 2-3x speed boost
+
+## Migration Priorities
+
+If user asks to modernize:
+1. Update React 18 → 19
+2. Replace Express → Hono
+3. Add Biome config, remove ESLint
+4. Update to Vite 6
+5. Consider Bun for package management
+6. Update Gemini API to latest version
+7. Add TanStack Query for data fetching
+8. Replace axios with native fetch
+
+## Quick Commands Reference
+
+```bash
+# Modern setup
+bun install              # Instead of npm install
+bun run dev             # Faster dev server
+bun test                # Run tests
+
+# Vibe check
+bun biome check .       # Lint + format in one
+bun build               # Production build
+```
+
+## Final Reminder
+
+**SHIP FAST. VIBE HIGH. CODE MODERN. STAY FRESH. 🔥**
+
+No essays. No specs. Just clean, modern, working code.
+When in doubt - pick the newest, fastest, simplest solution.
+
