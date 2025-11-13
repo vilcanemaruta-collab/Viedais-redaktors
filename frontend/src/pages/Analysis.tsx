@@ -7,7 +7,6 @@ import { useAdminStore } from '../stores/adminStore';
 import { analyzeText } from '../services/api';
 import { calculateTextMetrics, getReadabilityLevel } from '../utils/analysisMetrics';
 import { buildAnalysisPrompt } from '../utils/promptBuilder';
-import type { TextIssue } from '../types';
 
 export default function Analysis() {
   const navigate = useNavigate();

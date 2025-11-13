@@ -13,7 +13,6 @@ export default function Admin() {
     systemPrompts,
     activePromptId,
     addGuideline,
-    updateGuideline,
     deleteGuideline,
     addArticle,
     deleteArticle,
