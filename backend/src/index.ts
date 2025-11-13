@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import analysisRoutes from './routes/analysis.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api', analysisRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -36,6 +38,10 @@ app.get('/', (req, res) => {
       summarize: 'POST /api/summarize',
       suggestions: 'POST /api/suggestions',
       health: 'GET /api/health',
+      adminData: 'GET /api/admin/data',
+      guidelines: 'POST/PUT/DELETE /api/admin/guidelines',
+      knowledgeBase: 'POST/DELETE /api/admin/knowledge-base',
+      prompts: 'POST /api/admin/prompts',
     },
   });
 });
@@ -62,4 +68,5 @@ app.listen(PORT, () => {
 });
 
 export default app;
+
 

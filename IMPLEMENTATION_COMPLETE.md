@@ -381,3 +381,4 @@ Paldies par iespēju piedalīties hakatonā un izveidot šo projektu!
 
 **VISS GATAVS! 🎉**
 
+

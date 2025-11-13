@@ -510,3 +510,4 @@ Pēc 3 mēnešiem (Mērķis):
 **Tips:** Prakt guide
 **Mērķauditorija:** Redaktori, satura menedžeri, žurnālisti
 
+

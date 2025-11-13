@@ -138,3 +138,4 @@ Atbildi ar numurētu sarakstu, katrs ieteikums jaunā rindā.`;
   }
 }
 
+

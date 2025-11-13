@@ -330,3 +330,4 @@ cd backend && vercel
 
 Ja jums patīk projekts, ⭐ star repository GitHub!
 
+

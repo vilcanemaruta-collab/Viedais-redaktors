@@ -1,22 +1,34 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Guideline, KnowledgeBaseArticle, SystemPrompt } from '../types';
+import { 
+  fetchAdminData, 
+  addGuideline as apiAddGuideline,
+  updateGuideline as apiUpdateGuideline,
+  deleteGuideline as apiDeleteGuideline,
+  addArticle as apiAddArticle,
+  deleteArticle as apiDeleteArticle,
+  addPrompt as apiAddPrompt,
+  setActivePrompt as apiSetActivePrompt,
+} from '../services/api';
 
 interface AdminStore {
   guidelines: Guideline[];
   knowledgeBase: KnowledgeBaseArticle[];
   systemPrompts: SystemPrompt[];
   activePromptId: string | null;
+  isLoading: boolean;
   
-  addGuideline: (guideline: Guideline) => void;
-  updateGuideline: (id: string, guideline: Partial<Guideline>) => void;
-  deleteGuideline: (id: string) => void;
+  loadFromServer: () => Promise<void>;
+  addGuideline: (guideline: Guideline) => Promise<void>;
+  updateGuideline: (id: string, guideline: Partial<Guideline>) => Promise<void>;
+  deleteGuideline: (id: string) => Promise<void>;
   
-  addArticle: (article: KnowledgeBaseArticle) => void;
-  deleteArticle: (id: string) => void;
+  addArticle: (article: KnowledgeBaseArticle) => Promise<void>;
+  deleteArticle: (id: string) => Promise<void>;
   
-  addSystemPrompt: (prompt: SystemPrompt) => void;
-  setActivePrompt: (id: string) => void;
+  addSystemPrompt: (prompt: SystemPrompt) => Promise<void>;
+  setActivePrompt: (id: string) => Promise<void>;
   getActivePrompt: () => SystemPrompt | null;
 }
 
@@ -53,34 +65,102 @@ export const useAdminStore = create<AdminStore>()(
       knowledgeBase: [],
       systemPrompts: [DEFAULT_PROMPT],
       activePromptId: 'default',
+      isLoading: false,
       
-      addGuideline: (guideline) =>
-        set((state) => ({ guidelines: [...state.guidelines, guideline] })),
+      loadFromServer: async () => {
+        try {
+          set({ isLoading: true });
+          const data = await fetchAdminData();
+          set({
+            guidelines: data.guidelines || [],
+            knowledgeBase: data.knowledgeBase || [],
+            systemPrompts: data.systemPrompts || [DEFAULT_PROMPT],
+            activePromptId: data.activePromptId || 'default',
+            isLoading: false,
+          });
+        } catch (error) {
+          console.error('Failed to load admin data from server:', error);
+          set({ isLoading: false });
+        }
+      },
       
-      updateGuideline: (id, updates) =>
-        set((state) => ({
-          guidelines: state.guidelines.map((g) =>
-            g.id === id ? { ...g, ...updates } : g
-          ),
-        })),
+      addGuideline: async (guideline) => {
+        try {
+          await apiAddGuideline(guideline);
+          set((state) => ({ guidelines: [...state.guidelines, guideline] }));
+        } catch (error) {
+          console.error('Failed to add guideline:', error);
+          throw error;
+        }
+      },
       
-      deleteGuideline: (id) =>
-        set((state) => ({
-          guidelines: state.guidelines.filter((g) => g.id !== id),
-        })),
+      updateGuideline: async (id, updates) => {
+        try {
+          await apiUpdateGuideline(id, updates);
+          set((state) => ({
+            guidelines: state.guidelines.map((g) =>
+              g.id === id ? { ...g, ...updates } : g
+            ),
+          }));
+        } catch (error) {
+          console.error('Failed to update guideline:', error);
+          throw error;
+        }
+      },
       
-      addArticle: (article) =>
-        set((state) => ({ knowledgeBase: [...state.knowledgeBase, article] })),
+      deleteGuideline: async (id) => {
+        try {
+          await apiDeleteGuideline(id);
+          set((state) => ({
+            guidelines: state.guidelines.filter((g) => g.id !== id),
+          }));
+        } catch (error) {
+          console.error('Failed to delete guideline:', error);
+          throw error;
+        }
+      },
       
-      deleteArticle: (id) =>
-        set((state) => ({
-          knowledgeBase: state.knowledgeBase.filter((a) => a.id !== id),
-        })),
+      addArticle: async (article) => {
+        try {
+          await apiAddArticle(article);
+          set((state) => ({ knowledgeBase: [...state.knowledgeBase, article] }));
+        } catch (error) {
+          console.error('Failed to add article:', error);
+          throw error;
+        }
+      },
       
-      addSystemPrompt: (prompt) =>
-        set((state) => ({ systemPrompts: [...state.systemPrompts, prompt] })),
+      deleteArticle: async (id) => {
+        try {
+          await apiDeleteArticle(id);
+          set((state) => ({
+            knowledgeBase: state.knowledgeBase.filter((a) => a.id !== id),
+          }));
+        } catch (error) {
+          console.error('Failed to delete article:', error);
+          throw error;
+        }
+      },
       
-      setActivePrompt: (id) => set({ activePromptId: id }),
+      addSystemPrompt: async (prompt) => {
+        try {
+          await apiAddPrompt(prompt);
+          set((state) => ({ systemPrompts: [...state.systemPrompts, prompt] }));
+        } catch (error) {
+          console.error('Failed to add prompt:', error);
+          throw error;
+        }
+      },
+      
+      setActivePrompt: async (id) => {
+        try {
+          await apiSetActivePrompt(id);
+          set({ activePromptId: id });
+        } catch (error) {
+          console.error('Failed to set active prompt:', error);
+          throw error;
+        }
+      },
       
       getActivePrompt: () => {
         const state = get();

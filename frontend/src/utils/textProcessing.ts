@@ -106,3 +106,35 @@ export function extractKeywords(text: string, count: number = 10): string[] {
     .map(([word]) => word);
 }
 
+export function applyCorrectedText(
+  originalText: string,
+  issues: Array<{
+    sentence: string;
+    suggestion: string;
+    position: { start: number; end: number };
+    accepted?: boolean;
+  }>
+): string {
+  // Filter only accepted issues
+  const acceptedIssues = issues.filter(issue => issue.accepted);
+  
+  if (acceptedIssues.length === 0) {
+    return originalText;
+  }
+
+  // Sort by position (descending) to replace from end to start
+  const sorted = [...acceptedIssues].sort((a, b) => b.position.start - a.position.start);
+  
+  let result = originalText;
+  
+  sorted.forEach(issue => {
+    const { start, end } = issue.position;
+    const before = result.substring(0, start);
+    const after = result.substring(end);
+    result = before + issue.suggestion + after;
+  });
+  
+  return result;
+}
+
+

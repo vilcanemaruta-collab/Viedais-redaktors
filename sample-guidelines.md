@@ -220,3 +220,4 @@ Vadlīnijas var un vajadzētu regulāri atjaunināt:
 
 **Piezīme**: Šīs ir piemēra vadlīnijas demonstrācijas nolūkiem. Reālā lietošanā izmantojiet oficiālās Delfi un Reuters vadlīnijas.
 
+

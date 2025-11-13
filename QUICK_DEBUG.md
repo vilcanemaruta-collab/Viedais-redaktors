@@ -159,3 +159,4 @@ fetch('/.netlify/functions/analyze', {
 
 Share rezultātu!
 
+

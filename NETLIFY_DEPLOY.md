@@ -189,3 +189,4 @@ netlify.toml            # Netlify config (UPDATED)
 
 **Tagad viss ir gatavs prezentācijai!** 🚀
 
+

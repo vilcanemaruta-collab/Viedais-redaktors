@@ -192,3 +192,4 @@ Meklējiet:
 
 **ETA līdz working app: ~5 minūtes** ⏱️
 
+

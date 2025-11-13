@@ -214,3 +214,4 @@ Ieteicams pievienot:
 - Eksportēt analīzes rezultātus JSON formātā
 - Git repository kā code backup
 
+

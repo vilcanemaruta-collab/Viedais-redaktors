@@ -1,7 +1,10 @@
 import axios from 'axios';
-import type { AnalysisResult, TextSettings } from '../types';
+import type { AnalysisResult, TextSettings, Guideline, KnowledgeBaseArticle, SystemPrompt } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/.netlify/functions';
+const ADMIN_API_BASE = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/admin` 
+  : '/.netlify/functions/admin-data';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,6 +12,13 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+export interface AdminData {
+  guidelines: Guideline[];
+  knowledgeBase: KnowledgeBaseArticle[];
+  systemPrompts: SystemPrompt[];
+  activePromptId: string | null;
+}
 
 export interface AnalyzeRequest {
   text: string;
@@ -67,6 +77,87 @@ export async function getSuggestions(text: string, language: string): Promise<st
   } catch (error) {
     console.error('Error getting suggestions:', error);
     throw new Error('Neizdevās iegūt ieteikumus. Lūdzu, mēģiniet vēlreiz.');
+  }
+}
+
+// Admin API functions
+const adminApi = axios.create({
+  baseURL: ADMIN_API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export async function fetchAdminData(): Promise<AdminData> {
+  try {
+    const response = await adminApi.get<AdminData>('');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin data:', error);
+    throw new Error('Neizdevās ielādēt admin datus.');
+  }
+}
+
+export async function addGuideline(guideline: Guideline): Promise<void> {
+  try {
+    await adminApi.post('/guidelines', guideline);
+  } catch (error) {
+    console.error('Error adding guideline:', error);
+    throw new Error('Neizdevās pievienot vadlīniju.');
+  }
+}
+
+export async function updateGuideline(id: string, updates: Partial<Guideline>): Promise<void> {
+  try {
+    await adminApi.put(`/guidelines/${id}`, updates);
+  } catch (error) {
+    console.error('Error updating guideline:', error);
+    throw new Error('Neizdevās atjaunot vadlīniju.');
+  }
+}
+
+export async function deleteGuideline(id: string): Promise<void> {
+  try {
+    await adminApi.delete(`/guidelines/${id}`);
+  } catch (error) {
+    console.error('Error deleting guideline:', error);
+    throw new Error('Neizdevās dzēst vadlīniju.');
+  }
+}
+
+export async function addArticle(article: KnowledgeBaseArticle): Promise<void> {
+  try {
+    await adminApi.post('/knowledge-base', article);
+  } catch (error) {
+    console.error('Error adding article:', error);
+    throw new Error('Neizdevās pievienot rakstu.');
+  }
+}
+
+export async function deleteArticle(id: string): Promise<void> {
+  try {
+    await adminApi.delete(`/knowledge-base/${id}`);
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    throw new Error('Neizdevās dzēst rakstu.');
+  }
+}
+
+export async function addPrompt(prompt: SystemPrompt): Promise<void> {
+  try {
+    await adminApi.post('/prompts', prompt);
+  } catch (error) {
+    console.error('Error adding prompt:', error);
+    throw new Error('Neizdevās pievienot prompt.');
+  }
+}
+
+export async function setActivePrompt(id: string): Promise<void> {
+  try {
+    await adminApi.put('/active-prompt', { id });
+  } catch (error) {
+    console.error('Error setting active prompt:', error);
+    throw new Error('Neizdevās iestatīt aktīvo prompt.');
   }
 }
 

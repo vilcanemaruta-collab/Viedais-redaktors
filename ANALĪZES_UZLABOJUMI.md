@@ -324,3 +324,4 @@ repetitionScore = (uniqueWords / totalWords) × 100
 **Versija:** 2.0  
 **AI Engine:** Gemini 2.0 Flash (pārliecinies par jaunākajiem update)
 
+

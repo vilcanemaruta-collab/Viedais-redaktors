@@ -30,3 +30,4 @@ echo Netlify Dashboard → Functions → analyze → Recent invocations
 echo.
 pause
 
+

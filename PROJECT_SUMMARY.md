@@ -295,3 +295,4 @@ Projekts izveidots Delfi hakatonam 2024.
 **Versija**: 1.0.0
 **Datums**: 2024
 
+

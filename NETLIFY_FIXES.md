@@ -209,3 +209,4 @@ Visas kļūdas ir novērstas un projekts ir gatavs veiksmīgam deployment!
 
 **Commit un push izmaiņas, lai Netlify automātiski rebuild!** 🚀
 
+

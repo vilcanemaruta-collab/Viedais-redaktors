@@ -56,3 +56,8 @@ coverage/
 # Local development
 *.local
 
+# Backend data files (keep directory, ignore contents)
+backend/data/*.json
+!backend/data/.gitkeep
+
+

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, AlertCircle, CheckCircle, Download, Loader2, ArrowLeft, CheckSquare, Square } from 'lucide-react';
+import { BarChart3, AlertCircle, CheckCircle, Download, Loader2, ArrowLeft, CheckSquare, Square, FileText, Copy, Check } from 'lucide-react';
 import { useTextStore } from '../stores/textStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useAdminStore } from '../stores/adminStore';
 import { analyzeText } from '../services/api';
 import { calculateTextMetrics, getReadabilityLevel } from '../utils/analysisMetrics';
 import { buildAnalysisPrompt } from '../utils/promptBuilder';
+import { applyCorrectedText } from '../utils/textProcessing';
 
 export default function Analysis() {
   const navigate = useNavigate();
@@ -24,6 +25,8 @@ export default function Analysis() {
   const { guidelines, knowledgeBase, getActivePrompt } = useAdminStore();
   const [error, setError] = useState<string | null>(null);
   const [showOnlyAccepted, setShowOnlyAccepted] = useState(false);
+  const [showCorrectedText, setShowCorrectedText] = useState(false);
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
   useEffect(() => {
     if (!text.trim()) {
@@ -160,6 +163,28 @@ export default function Analysis() {
   };
 
   const acceptedCount = analysisResult?.issues.filter(i => i.accepted).length || 0;
+  
+  const correctedText = analysisResult ? applyCorrectedText(text, analysisResult.issues) : '';
+
+  const handleCopyText = async () => {
+    try {
+      await navigator.clipboard.writeText(correctedText);
+      setCopiedToClipboard(true);
+      setTimeout(() => setCopiedToClipboard(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+    }
+  };
+
+  const handleDownloadCorrectedText = () => {
+    const blob = new Blob([correctedText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `labotais-teksts-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (isAnalyzing) {
     return (
@@ -444,6 +469,60 @@ export default function Analysis() {
         </div>
       </div>
 
+      {/* Corrected Text Section */}
+      {acceptedCount > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <FileText className="text-green-600" />
+              Labotais Teksts
+            </h2>
+            <button
+              onClick={() => setShowCorrectedText(!showCorrectedText)}
+              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium"
+            >
+              {showCorrectedText ? 'Paslēpt' : 'Parādīt'}
+            </button>
+          </div>
+          
+          {showCorrectedText && (
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="whitespace-pre-wrap text-gray-900 dark:text-gray-100 leading-relaxed">
+                  {correctedText}
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCopyText}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  {copiedToClipboard ? (
+                    <>
+                      <Check size={20} className="text-green-600" />
+                      Nokopēts!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={20} />
+                      Kopēt tekstu
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDownloadCorrectedText}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Download size={20} />
+                  Lejupielādēt .txt
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
         <button
@@ -467,7 +546,7 @@ export default function Analysis() {
             className="btn-secondary flex items-center gap-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
           >
             <Download size={20} />
-            Eksportēt akceptētos ({acceptedCount})
+            Eksportēt analīzi JSON ({acceptedCount})
           </button>
         )}
       </div>

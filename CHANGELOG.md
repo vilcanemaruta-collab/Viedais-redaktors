@@ -251,3 +251,4 @@ Plānotie uzlabojumi nākamajām versijām:
 
 **Versija 1.0.0 ir pilnībā funkcionāla un gatava production lietošanai!** ✅
 
+

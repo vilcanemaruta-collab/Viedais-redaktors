@@ -564,3 +564,4 @@ Desktop:   > 1024px  (full layout, sidebar)
 
 **Arhitektūra ir moderna, skalējama un maintainable!** ✅
 
+

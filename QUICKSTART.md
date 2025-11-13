@@ -185,3 +185,4 @@ Ja rodas problēmas:
 
 Priecīgu kodēšanu! 🚀
 
+

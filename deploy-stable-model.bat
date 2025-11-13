@@ -14,3 +14,4 @@ echo.
 echo After deployment, test the app and check Function logs if issues persist.
 pause
 
+

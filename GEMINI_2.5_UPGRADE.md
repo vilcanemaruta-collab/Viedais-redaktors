@@ -115,3 +115,4 @@ Ja nedarbojas:
 2. ❌ Nosūtiet Console error messages
 3. ❌ Pārbaudiet API key status Google AI Studio
 
+

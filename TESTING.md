@@ -302,3 +302,4 @@ test('full analysis flow', async ({ page }) => {
 - E2E tests: galvenās user journeys
 - Manual testing: visas funkcijas pirms release
 
+
