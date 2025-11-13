@@ -15,6 +15,18 @@ export interface TextMetrics {
   avgWordsPerSentence: number;
   readabilityScore: number;
   complexSentences: number;
+  passiveVoiceCount?: number;
+  passiveVoicePercentage?: number;
+  longSentencesCount?: number;
+  longSentencesPercentage?: number;
+  avgParagraphLength?: number;
+  wordRepetitionScore?: number;
+  guidelineCompliance?: {
+    sentenceLength: 'excellent' | 'good' | 'fair' | 'poor';
+    activeVoice: 'excellent' | 'good' | 'fair' | 'poor';
+    clarity: 'excellent' | 'good' | 'fair' | 'poor';
+    overall: number;
+  };
 }
 
 export interface TextIssue {

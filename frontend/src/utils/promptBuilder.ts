@@ -26,11 +26,16 @@ export function buildAnalysisPrompt(options: PromptBuilderOptions): string {
       article.category === settings.category
   );
   
-  // Build knowledge base context
+  // Build knowledge base context with content excerpts
   const knowledgeBaseText = relevantArticles.length > 0
-    ? `\n\nLABU RAKSTU PIEMĒRI:\n${relevantArticles
-        .map((a) => `- ${a.title}`)
-        .join('\n')}`
+    ? `\n\nLABU RAKSTU PIEMĒRI (analizē un salīdzini tekstu ar šiem piemēriem):\n${relevantArticles
+        .map((a) => {
+          const excerpt = a.content.length > 300 
+            ? a.content.substring(0, 300) + '...'
+            : a.content;
+          return `### ${a.title}\n${excerpt}`;
+        })
+        .join('\n\n')}`
     : '';
   
   // Language names
@@ -88,18 +93,61 @@ export function validatePromptTemplate(template: string): {
 
 export function getDefaultPromptTemplate(): string {
   return `Tu esi profesionāls teksta redaktors {language} valodā.
-Analizē šo tekstu pēc šādiem kritērijiem:
 
-VADLĪNIJAS:
+Analizē tekstu pēc šādiem kritērijiem, īpaši pievēršot uzmanību vadlīnijām un labajiem piemēriem:
+
+═══════════════════════════════════════════════════
+VADLĪNIJAS UN LABĀS PRAKSES:
+═══════════════════════════════════════════════════
 {guidelines}
 
+═══════════════════════════════════════════════════
+TEKSTA PARAMETRI:
+═══════════════════════════════════════════════════
 KATEGORIJA: {category}
 STILS: {style}
 
-TEKSTS:
+═══════════════════════════════════════════════════
+ANALIZĒJAMAIS TEKSTS:
+═══════════════════════════════════════════════════
 {text}
 
-Atgriezies JSON formātā ar šādu struktūru:
+═══════════════════════════════════════════════════
+ANALĪZES UZDEVUMI:
+═══════════════════════════════════════════════════
+
+1. TEIKUMU GARUMS:
+   - Pārbaudi, vai vidējais teikuma garums ir 15-20 vārdi (ideāls)
+   - Atzīmē teikumus, kas garāki par 25 vārdiem
+   - Iesaki, kā sadalīt garos teikumus
+
+2. AKTĪVĀ/PASĪVĀ BALSS:
+   - Identificē visas pasīvās balss konstrukcijas
+   - Iesaki pārveidot pasīvo balsi aktīvajā
+   - Piemēri vadlīnijās rāda pareizo pieeju
+
+3. SKAIDRĪBA UN KONKRĒTĪBA:
+   - Atrod neskaidrus vai vispārīgus formulējumus
+   - Identificē žargonu vai sarežģītus terminus
+   - Iesaki konkrētākus formulējumus
+
+4. RINDKOPU STRUKTŪRA:
+   - Pārbaudi rindkopu garumu (ideāls: 3-4 teikumi)
+   - Novērtē informācijas loģisko plūsmu
+   - Iesaki uzlabojumus struktūrā
+
+5. VĀRDU DAUDZVEIDĪBA:
+   - Atrod bieži atkārtojošos vārdus
+   - Iesaki sinonīmus un alternatīvas
+   
+6. ATBILSTĪBA LABAJIEM PIEMĒRIEM:
+   - Salīdzini tekstu ar pievienotajiem labajiem piemēriem
+   - Atzīmē, kur teksts atšķiras no labās prakses
+   - Iesaki, kā pietuvoties piemēru kvalitātei
+
+═══════════════════════════════════════════════════
+ATBILDE JSON FORMĀTĀ:
+═══════════════════════════════════════════════════
 {
   "readability_score": 0-100,
   "issues": [
@@ -107,11 +155,11 @@ Atgriezies JSON formātā ar šādu struktūru:
       "type": "readability|grammar|style|complexity",
       "severity": "low|medium|high",
       "sentence": "problēmatiskais teikums",
-      "suggestion": "ieteikums uzlabojumam",
+      "suggestion": "konkrēts ieteikums uzlabojumam (ņemot vērā vadlīnijas)",
       "position": {"start": 0, "end": 0}
     }
   ],
-  "summary": "• Bullet point 1\\n• Bullet point 2\\n• Bullet point 3",
+  "summary": "• Galvenie atrādījumi\\n• Stiprās puses\\n• Uzlabojumu jomas\\n• Rekomendācijas atbilstoši vadlīnijām",
   "metrics": {
     "wordCount": 0,
     "sentenceCount": 0,
