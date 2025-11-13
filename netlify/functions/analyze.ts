@@ -24,6 +24,128 @@ interface AnalysisResponse {
   };
 }
 
+type RawAnalysis = Partial<AnalysisResponse> & Record<string, unknown>;
+type RawIssue = Partial<AnalysisResponse['issues'][number]> & Record<string, unknown>;
+type RawMetrics = Partial<AnalysisResponse['metrics']> & Record<string, unknown>;
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const sanitizeIssues = (rawIssues: unknown): AnalysisResponse['issues'] => {
+  if (!Array.isArray(rawIssues)) {
+    return [];
+  }
+
+  return rawIssues
+    .map<AnalysisResponse['issues'][number] | null>((issue) => {
+      if (typeof issue !== 'object' || issue === null) {
+        return null;
+      }
+
+      const issueObject = issue as RawIssue;
+
+      const type = typeof issueObject.type === 'string' ? issueObject.type : 'style';
+      const severity = typeof issueObject.severity === 'string' ? issueObject.severity : 'medium';
+      const sentence = typeof issueObject.sentence === 'string' ? issueObject.sentence.trim() : '';
+      const suggestion = typeof issueObject.suggestion === 'string' ? issueObject.suggestion.trim() : '';
+
+      if (!sentence || !suggestion) {
+        return null;
+      }
+
+      let start = 0;
+      let end = sentence.length;
+
+      if ('position' in issueObject && typeof issueObject.position === 'object' && issueObject.position !== null) {
+        const position = issueObject.position as Record<string, unknown>;
+        start = toNumber(position.start) ?? start;
+        end = toNumber(position.end) ?? end;
+      }
+
+      return {
+        type,
+        severity,
+        sentence,
+        suggestion,
+        position: {
+          start,
+          end: Math.max(end, start),
+        },
+      };
+    })
+    .filter((issue): issue is AnalysisResponse['issues'][number] => issue !== null);
+};
+
+const sanitizeSummary = (rawSummary: unknown): string => {
+  if (typeof rawSummary === 'string') {
+    const trimmed = rawSummary.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+
+  if (Array.isArray(rawSummary)) {
+    const bullets = rawSummary
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => {
+        const trimmed = item.trim();
+        return trimmed.startsWith('•') ? trimmed : `• ${trimmed}`;
+      });
+
+    if (bullets.length > 0) {
+      return bullets.join('\n');
+    }
+  }
+
+  return '• Kopsavilkums nav pieejams';
+};
+
+const sanitizeMetrics = (rawMetrics: unknown, fallbackReadability: number): AnalysisResponse['metrics'] => {
+  const metricsObject = (typeof rawMetrics === 'object' && rawMetrics !== null ? rawMetrics : {}) as RawMetrics;
+
+  const wordCount = toNumber(metricsObject.wordCount) ?? 0;
+  const sentenceCount = toNumber(metricsObject.sentenceCount) ?? 0;
+  const paragraphCount = toNumber(metricsObject.paragraphCount) ?? 0;
+  const avgWordsPerSentence = toNumber(metricsObject.avgWordsPerSentence) ?? 0;
+  const readabilityScore = toNumber(metricsObject.readabilityScore) ?? fallbackReadability;
+  const complexSentences = toNumber(metricsObject.complexSentences) ?? 0;
+
+  return {
+    wordCount,
+    sentenceCount,
+    paragraphCount,
+    avgWordsPerSentence,
+    readabilityScore: clamp(readabilityScore, 0, 100),
+    complexSentences,
+  };
+};
+
+const normalizeAnalysis = (raw: RawAnalysis): AnalysisResponse => {
+  const readabilityScore = clamp(toNumber(raw.readability_score) ?? 50, 0, 100);
+  const issues = sanitizeIssues(raw.issues);
+  const summary = sanitizeSummary(raw.summary);
+  const metrics = sanitizeMetrics(raw.metrics, readabilityScore);
+
+  return {
+    readability_score: readabilityScore,
+    issues,
+    summary,
+    metrics,
+  };
+};
+
 async function analyzeWithGemini(prompt: string, retries = 2): Promise<AnalysisResponse> {
   console.log('🤖 Initializing Gemini model...');
   // Using Gemini 2.0 Flash (experimental) - fast and reliable
@@ -59,11 +181,8 @@ async function analyzeWithGemini(prompt: string, retries = 2): Promise<AnalysisR
         throw new Error('No JSON found in response');
       }
 
-      const analysis: AnalysisResponse = JSON.parse(jsonMatch[0]);
-      
-      if (!analysis.readability_score || !analysis.issues || !analysis.summary || !analysis.metrics) {
-        throw new Error('Invalid response structure');
-      }
+      const rawAnalysis = JSON.parse(jsonMatch[0]) as RawAnalysis;
+      const analysis = normalizeAnalysis(rawAnalysis);
 
       console.log('✅ Gemini analysis parsed successfully');
       return analysis;
