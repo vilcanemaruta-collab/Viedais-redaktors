@@ -43,7 +43,7 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const languageNames: Record<string, string> = {
       lv: 'latviešu',

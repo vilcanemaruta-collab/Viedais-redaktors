@@ -25,13 +25,20 @@ interface AnalysisResponse {
 }
 
 async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisResponse> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  console.log('🤖 Initializing Gemini model...');
+  // Using latest Gemini 2.5 Flash model
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
+      console.log(`🔄 Gemini attempt ${attempt + 1}/${retries}`);
+      console.log('📤 Sending prompt to Gemini (length:', prompt.length, ')');
+      
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
+      
+      console.log('📥 Gemini response received (length:', text.length, ')');
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -44,11 +51,18 @@ async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisR
         throw new Error('Invalid response structure');
       }
 
+      console.log('✅ Gemini analysis parsed successfully');
       return analysis;
     } catch (error) {
-      console.error(`Gemini API attempt ${attempt + 1} failed:`, error);
+      console.error(`❌ Gemini API attempt ${attempt + 1} failed:`, error);
+      console.error('❌ Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       
       if (attempt === retries - 1) {
+        console.error('❌ All Gemini attempts failed, returning fallback');
         return {
           readability_score: 50,
           issues: [],
@@ -64,6 +78,7 @@ async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisR
         };
       }
 
+      console.log(`⏳ Waiting ${1000 * (attempt + 1)}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
     }
   }
