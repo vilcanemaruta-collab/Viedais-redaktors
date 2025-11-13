@@ -33,6 +33,7 @@ export interface AnalysisResult {
   issues: TextIssue[];
   summary: string;
   readabilityScore: number;
+  readability_score?: number;
 }
 
 export interface Guideline {

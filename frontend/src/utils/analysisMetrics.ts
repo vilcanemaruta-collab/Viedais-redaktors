@@ -119,8 +119,8 @@ export function getReadabilityLevel(score: number): {
     };
   } else if (score >= 60) {
     return {
-      level: 'Standarts',
-      description: 'Teksts ir standarta sarežģītības līmenī',
+      level: 'Vidējs',
+      description: 'Teksts ir vidēja sarežģītības līmenī',
       color: 'text-yellow-600',
     };
   } else if (score >= 50) {

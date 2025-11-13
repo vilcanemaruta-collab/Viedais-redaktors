@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FileText, Settings, BarChart3, Shield, Menu, X, Moon, Sun, RefreshCw } from 'lucide-react';
+import { FileText, Settings, BarChart3, Shield, Menu, X, Moon, Sun, RefreshCw, Bug } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
@@ -47,6 +47,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/settings', icon: Settings, label: 'Iestatījumi' },
     { path: '/analysis', icon: BarChart3, label: 'Analīze' },
     { path: '/admin', icon: Shield, label: 'Administrēšana' },
+    { path: '/debug', icon: Bug, label: 'Debug' },
   ];
 
   return (

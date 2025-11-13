@@ -5,6 +5,7 @@ import TextInput from './pages/TextInput';
 import Settings from './pages/Settings';
 import Analysis from './pages/Analysis';
 import Admin from './pages/Admin';
+import Debug from './pages/Debug';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/analysis" element={<Analysis />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/debug" element={<Debug />} />
           </Routes>
         </Layout>
       </Router>

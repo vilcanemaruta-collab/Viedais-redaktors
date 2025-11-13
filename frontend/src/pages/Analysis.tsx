@@ -65,11 +65,18 @@ export default function Analysis() {
       console.log('✅ API Response:', result);
 
       // Merge local and AI metrics
+      const apiReadabilityScore =
+        result.readabilityScore ?? result.readability_score ?? result.metrics?.readabilityScore;
+
+      const mergedReadability = apiReadabilityScore ?? metrics.readabilityScore;
+
       const finalResult = {
         ...result,
+        readabilityScore: mergedReadability,
         metrics: {
           ...metrics,
           ...result.metrics,
+          readabilityScore: mergedReadability,
         },
       };
 
@@ -230,6 +237,14 @@ export default function Analysis() {
               {readabilityInfo.description}
             </p>
           </div>
+        </div>
+        <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <p>
+            Skala 0–100 rāda, cik viegli tekstu uztvert (balstīta uz Flesch lasāmības rādītāja latvisko adaptāciju).
+          </p>
+          <p>
+            90+ – ļoti viegli, 70–89 – viegli, 60–69 – vidējs līmenis, 30–59 – grūtāk, zem 30 – ļoti grūti.
+          </p>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 
 interface AnalysisResponse {
   readability_score: number;
+  readabilityScore: number;
   issues: Array<{
     type: string;
     severity: string;
@@ -140,6 +141,7 @@ const normalizeAnalysis = (raw: RawAnalysis): AnalysisResponse => {
 
   return {
     readability_score: readabilityScore,
+    readabilityScore,
     issues,
     summary,
     metrics,
@@ -147,10 +149,40 @@ const normalizeAnalysis = (raw: RawAnalysis): AnalysisResponse => {
 };
 
 const MODEL_VARIANTS = [
+  'gemini-2.5-pro-exp',
+  'gemini-2.5-pro',
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash',
   'gemini-1.5-flash-latest',
 ];
+
+interface GeminiAttemptLog {
+  model: string;
+  attempt: number;
+  durationMs: number;
+  status: 'success' | 'error';
+  error?: string;
+  responseLength?: number;
+}
+
+interface AnalysisDebugMeta {
+  debugMode: boolean;
+  timestamp: string;
+  promptLength: number;
+  textLength: number;
+  localMetrics: AnalysisResponse['metrics'];
+  modelAttempts: GeminiAttemptLog[];
+  selectedModel?: string;
+  fallbackUsed: boolean;
+  environment: {
+    node: string;
+    netlifyRegion?: string;
+    runtime?: string;
+    apiKeyPresent: boolean;
+  };
+  promptSample: string;
+  errors: Array<{ model: string; attempt: number; error: string }>;
+}
 
 const buildFallbackSummary = (text: string, metrics: AnalysisResponse['metrics']): string => {
   const sentences = text
@@ -215,16 +247,26 @@ interface GeminiAnalysisOptions {
   prompt: string;
   text: string;
   retries?: number;
+  debugMode?: boolean;
 }
 
-async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<AnalysisResponse> {
-  const { prompt, text, retries = 2 } = options;
+interface GeminiAnalysisResult {
+  analysis: AnalysisResponse;
+  debug: AnalysisDebugMeta;
+}
+
+async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<GeminiAnalysisResult> {
+  const { prompt, text, retries = 2, debugMode = false } = options;
 
   console.log('🤖 Initializing Gemini model...');
 
   const localMetrics = computeLocalMetrics(text);
   const fallbackSummary = buildFallbackSummary(text, localMetrics);
   const modelErrors: Array<{ model: string; attempt: number; error: string }> = [];
+  const modelAttempts: GeminiAttemptLog[] = [];
+
+  let selectedModel: string | undefined;
+  let fallbackUsed = false;
 
   for (const modelId of MODEL_VARIANTS) {
     console.log(`🧠 Trying Gemini model: ${modelId}`);
@@ -233,6 +275,7 @@ async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<Analys
     });
 
     for (let attempt = 0; attempt < retries; attempt++) {
+      const attemptStart = Date.now();
       try {
         console.log(`🔄 Gemini attempt ${attempt + 1}/${retries} with ${modelId}`);
         console.log('📤 Sending prompt to Gemini (length:', prompt.length, ')');
@@ -245,7 +288,7 @@ async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<Analys
           contents: [{ role: 'user', parts: [{ text: prompt }]}],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 4096,
             responseMimeType: 'application/json',
           },
         });
@@ -255,6 +298,14 @@ async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<Analys
         const responseText = response.text();
         
         console.log('📥 Gemini response received (length:', responseText.length, ')');
+
+        modelAttempts.push({
+          model: modelId,
+          attempt: attempt + 1,
+          durationMs: Date.now() - attemptStart,
+          status: 'success',
+          responseLength: responseText.length,
+        });
 
         let rawAnalysis: RawAnalysis;
 
@@ -271,12 +322,40 @@ async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<Analys
         }
 
         const analysis = normalizeAnalysis(rawAnalysis);
+        selectedModel = modelId;
 
         console.log('✅ Gemini analysis parsed successfully');
-        return analysis;
+        return {
+          analysis,
+          debug: {
+            debugMode,
+            timestamp: new Date().toISOString(),
+            promptLength: prompt.length,
+            textLength: text.length,
+            localMetrics,
+            modelAttempts,
+            selectedModel,
+            fallbackUsed,
+            environment: {
+              node: process.version,
+              netlifyRegion: process.env.AWS_REGION,
+              runtime: process.env.NETLIFY_RUNTIME,
+              apiKeyPresent: Boolean(API_KEY),
+            },
+            promptSample: prompt.slice(0, 1200),
+            errors: modelErrors,
+          },
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         modelErrors.push({ model: modelId, attempt: attempt + 1, error: message });
+        modelAttempts.push({
+          model: modelId,
+          attempt: attempt + 1,
+          durationMs: Date.now() - attemptStart,
+          status: 'error',
+          error: message,
+        });
 
         console.error(`❌ Gemini API attempt ${attempt + 1} failed for ${modelId}:`, error);
         console.error('❌ Error details:', {
@@ -293,12 +372,34 @@ async function analyzeWithGemini(options: GeminiAnalysisOptions): Promise<Analys
   }
 
   console.error('❌ All Gemini attempts failed across models:', modelErrors);
+  fallbackUsed = true;
 
   return {
-    readability_score: localMetrics.readabilityScore,
-    issues: [],
-    summary: `${fallbackSummary}\n• AI analīze pagaidām nav pieejama (Gemini kļūda)`,
-    metrics: localMetrics,
+    analysis: {
+      readability_score: localMetrics.readabilityScore,
+      readabilityScore: localMetrics.readabilityScore,
+      issues: [],
+      summary: `${fallbackSummary}\n• AI analīze pagaidām nav pieejama (Gemini kļūda)`,
+      metrics: localMetrics,
+    },
+    debug: {
+      debugMode,
+      timestamp: new Date().toISOString(),
+      promptLength: prompt.length,
+      textLength: text.length,
+      localMetrics,
+      modelAttempts,
+      selectedModel,
+      fallbackUsed,
+      environment: {
+        node: process.version,
+        netlifyRegion: process.env.AWS_REGION,
+        runtime: process.env.NETLIFY_RUNTIME,
+        apiKeyPresent: Boolean(API_KEY),
+      },
+      promptSample: prompt.slice(0, 1200),
+      errors: modelErrors,
+    },
   };
 }
 
@@ -371,20 +472,30 @@ export const handler: Handler = async (event) => {
       };
     }
 
+    const debugHeaderKey = Object.keys(event.headers || {}).find(
+      (key) => key.toLowerCase() === 'x-debug-mode'
+    );
+
+    const debugMode =
+      event.queryStringParameters?.debug === '1' ||
+      event.queryStringParameters?.debug === 'true' ||
+      (debugHeaderKey ? event.headers[debugHeaderKey] === '1' : false);
+
     console.log(`✅ Validation passed. Analyzing text (${text.length} chars) in ${settings.language}`);
 
-    const result = await analyzeWithGemini({ prompt, text });
+    const { analysis, debug } = await analyzeWithGemini({ prompt, text, debugMode });
+    const responsePayload = debugMode ? { ...analysis, debug } : analysis;
     
     console.log('✅ Analysis complete:', {
-      readabilityScore: result.readability_score,
-      issuesCount: result.issues.length,
-      summaryLength: result.summary.length,
+      readabilityScore: analysis.readability_score,
+      issuesCount: analysis.issues.length,
+      summaryLength: analysis.summary.length,
     });
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(result),
+      body: JSON.stringify(responsePayload),
     };
   } catch (error) {
     console.error('❌ Analyze error:', error);
