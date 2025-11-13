@@ -44,7 +44,7 @@ export default function Analysis() {
       if (!activePrompt) {
         throw new Error('Nav aktīvs sistēmas prompts');
       }
-      console.log('💬 Active prompt:', activePrompt.name);
+      console.log('💬 Active prompt ID:', activePrompt.id, 'Version:', activePrompt.version);
 
       const prompt = buildAnalysisPrompt({
         text,

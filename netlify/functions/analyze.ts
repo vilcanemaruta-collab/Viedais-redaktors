@@ -72,6 +72,11 @@ async function analyzeWithGemini(prompt: string, retries = 3): Promise<AnalysisR
 }
 
 export const handler: Handler = async (event) => {
+  console.log('🚀 Analyze function called');
+  console.log('📍 Method:', event.httpMethod);
+  console.log('🔑 API Key exists:', !!API_KEY);
+  console.log('🔑 API Key length:', API_KEY?.length);
+  
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -82,11 +87,13 @@ export const handler: Handler = async (event) => {
 
   // Handle preflight
   if (event.httpMethod === 'OPTIONS') {
+    console.log('✅ OPTIONS request - returning 204');
     return { statusCode: 204, headers, body: '' };
   }
 
   // Only allow POST
   if (event.httpMethod !== 'POST') {
+    console.log('❌ Invalid method:', event.httpMethod);
     return {
       statusCode: 405,
       headers,
@@ -95,7 +102,10 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    console.log('📦 Parsing request body...');
     const { text, settings, prompt } = JSON.parse(event.body || '{}');
+    console.log('📝 Text length:', text?.length);
+    console.log('⚙️ Settings:', settings);
 
     // Validation
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
@@ -130,9 +140,15 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    console.log(`Analyzing text (${text.length} chars) in ${settings.language}`);
+    console.log(`✅ Validation passed. Analyzing text (${text.length} chars) in ${settings.language}`);
 
     const result = await analyzeWithGemini(prompt);
+    
+    console.log('✅ Analysis complete:', {
+      readabilityScore: result.readability_score,
+      issuesCount: result.issues.length,
+      summaryLength: result.summary.length,
+    });
 
     return {
       statusCode: 200,
@@ -140,7 +156,8 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify(result),
     };
   } catch (error) {
-    console.error('Analyze error:', error);
+    console.error('❌ Analyze error:', error);
+    console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack');
     return {
       statusCode: 500,
       headers,
