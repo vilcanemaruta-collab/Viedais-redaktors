@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Guideline, KnowledgeBaseArticle, SystemPrompt } from '../types';
 
 interface AdminStore {
@@ -89,6 +89,48 @@ export const useAdminStore = create<AdminStore>()(
     }),
     {
       name: 'text-editor-admin',
+      version: 2,
+      storage: createJSONStorage<AdminStore>(() => localStorage),
+      merge: (persistedState, currentState) => {
+        if (!persistedState) return currentState;
+
+        const persisted = persistedState as AdminStore;
+
+        const mergeById = <T extends { id: string }>(base: T[], incoming?: T[]) => {
+          if (!incoming || incoming.length === 0) {
+            return base;
+          }
+          const map = new Map<string, T>();
+          base.forEach((item) => map.set(item.id, item));
+          incoming.forEach((item) => map.set(item.id, { ...map.get(item.id), ...item }));
+          return Array.from(map.values());
+        };
+
+        const withCreatedAt = <T extends { id: string; createdAt?: string }>(items: T[]) =>
+          items.map((item) => ({
+            ...item,
+            createdAt: item.createdAt ?? new Date().toISOString(),
+          }));
+
+        return {
+          ...currentState,
+          guidelines: withCreatedAt(mergeById(currentState.guidelines, persisted.guidelines)),
+          knowledgeBase: withCreatedAt(
+            mergeById(currentState.knowledgeBase, persisted.knowledgeBase)
+          ),
+          systemPrompts: withCreatedAt(
+            mergeById(currentState.systemPrompts, persisted.systemPrompts)
+          ),
+          activePromptId: persisted.activePromptId ?? currentState.activePromptId,
+        };
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const active = state.getActivePrompt();
+        if (!active) {
+          state.setActivePrompt('default');
+        }
+      },
     }
   )
 );

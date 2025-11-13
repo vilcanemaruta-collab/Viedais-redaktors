@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { TextSettings, Language, Category, Style } from '../types';
 
 interface SettingsStore extends TextSettings {
@@ -26,6 +26,8 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'text-editor-settings',
+      version: 2,
+      storage: createJSONStorage<SettingsStore>(() => localStorage),
     }
   )
 );
